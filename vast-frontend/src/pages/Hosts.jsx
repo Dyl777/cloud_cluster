@@ -123,7 +123,7 @@ function RegisterModal({ onClose }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, background: "rgba(31,35,40,0.45)", backdropFilter: "blur(3px)",
+      position: "fixed", inset: 0, background: "var(--scrim)", backdropFilter: "blur(3px)",
       display: "grid", placeItems: "center", zIndex: 60, padding: 20,
     }} onClick={onClose}>
       <div className="card" style={{ width: "min(520px, 100%)" }} onClick={(e) => e.stopPropagation()}>

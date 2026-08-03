@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Box, CreditCard, Cpu, Gauge, LayoutDashboard, LogOut, Server, Settings,
-  ShoppingCart, Wallet, Zap,
+  Box, CreditCard, Cpu, Gauge, LayoutDashboard, LogOut, Moon, Server, Settings,
+  ShoppingCart, Sun, Wallet, Zap,
 } from "lucide-react";
 import { useStore } from "../store";
 import { useAuth } from "../auth";
+import { useTheme } from "../theme";
 import { fmtMoney } from "../data/mock";
 
 export function NavLink({ to, icon: Icon, children }) {
@@ -22,6 +23,7 @@ export function NavLink({ to, icon: Icon, children }) {
 export function Topbar() {
   const { account, user } = useStore();
   const { logout } = useAuth();
+  const { theme, toggle } = useTheme();
   const initials = user?.name
     .split(" ")
     .map((w) => w[0])
@@ -43,6 +45,9 @@ export function Topbar() {
         <NavLink to="/settings" icon={Settings}>Settings</NavLink>
       </nav>
       <div className="topbar-right">
+        <button className="btn btn-ghost btn-sm" onClick={toggle} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
         <Link to="/billing" className="balance-chip" title="Account balance">
           <Wallet size={14} />
           <span className="label">balance</span>

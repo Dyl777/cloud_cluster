@@ -1,6 +1,7 @@
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
 import { StoreProvider } from "./store";
+import { ThemeProvider } from "./theme";
 import { Topbar, Toast } from "./components/ui";
 import Marketplace from "./pages/Marketplace";
 import Instances from "./pages/Instances";
@@ -39,10 +40,12 @@ function Shell() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <StoreProvider>
-        <Shell />
-      </StoreProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <StoreProvider>
+          <Shell />
+        </StoreProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
