@@ -1,0 +1,60 @@
+services:
+  identity:
+    build: .
+    command: ["./bin/identity"]
+    environment:
+      - IDENTITY_PORT=8081
+    ports:
+      - "8081:8081"
+
+  wallet:
+    build: .
+    command: ["./bin/wallet"]
+    environment:
+      - WALLET_PORT=8082
+    ports:
+      - "8082:8082"
+
+  payments:
+    build: .
+    command: ["./bin/payments"]
+    environment:
+      - PAYMENTS_PORT=8083
+      - WALLET_URL=http://wallet:8082
+    ports:
+      - "8083:8083"
+    depends_on:
+      - wallet
+
+  marketplace:
+    build: .
+    command: ["./bin/marketplace"]
+    environment:
+      - MARKETPLACE_PORT=8084
+    ports:
+      - "8084:8084"
+
+  provision:
+    build: .
+    command: ["./bin/provision"]
+    environment:
+      - PROVISION_PORT=8085
+    ports:
+      - "8085:8085"
+
+  settlement:
+    build: .
+    command: ["./bin/settlement"]
+    environment:
+      - SETTLEMENT_PORT=8086
+      - BANK_URL=http://wallet:8082
+    ports:
+      - "8086:8086"
+
+  notify:
+    build: .
+    command: ["./bin/notify"]
+    environment:
+      - NOTIFY_PORT=8088
+    ports:
+      - "8088:8088"
