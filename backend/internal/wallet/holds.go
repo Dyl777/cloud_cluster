@@ -59,7 +59,7 @@ func (s *Service) Settle(holdID string) error {
 	if err := s.store.DeleteHold(holdID); err != nil {
 		return err
 	}
-	return s.store.AppendLedger(ledgerEntry(h.ID, h.UserID, "settle", h.Amount, h.Reference))
+	return s.store.AppendLedger(ledgerEntry(h.ID+":settle", h.UserID, "settle", h.Amount, h.Reference))
 }
 
 // Release returns a hold to the balance.
@@ -87,7 +87,7 @@ func (s *Service) Release(holdID string) error {
 	if err := s.store.DeleteHold(holdID); err != nil {
 		return err
 	}
-	return s.store.AppendLedger(ledgerEntry(h.ID, h.UserID, "release", h.Amount, h.Reference))
+	return s.store.AppendLedger(ledgerEntry(h.ID+":release", h.UserID, "release", h.Amount, h.Reference))
 }
 
 // Ledger returns all entries for a user.
