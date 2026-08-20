@@ -5,7 +5,6 @@ package events
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -21,7 +20,7 @@ func TestKafkaRoundTrip(t *testing.T) {
 	}
 	group := "roundtrip-" + time.Now().Format("20060102-150405")
 
-	b, err := NewKafkaBus(strings.Split(broker, ","), group)
+	b, err := NewKafkaBus(normalizeSeeds(broker), group)
 	if err != nil {
 		t.Fatalf("NewKafkaBus: %v", err)
 	}

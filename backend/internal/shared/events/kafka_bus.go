@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -56,10 +55,7 @@ func NewFromEnv(group string) Bus {
 	if broker == "" {
 		return NewMemoryBus()
 	}
-	seeds := strings.Split(broker, ",")
-	for i := range seeds {
-		seeds[i] = strings.TrimSpace(seeds[i])
-	}
+	seeds := normalizeSeeds(broker)
 	b, err := NewKafkaBus(seeds, group)
 	if err != nil {
 		slog.Warn("kafka unavailable; falling back to memory bus", "err", err)

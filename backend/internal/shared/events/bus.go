@@ -3,7 +3,10 @@
 // on a Bus so consumers can react without tight coupling.
 package events
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 // Topic is a logical stream name that consumers subscribe to.
 type Topic string
@@ -53,4 +56,15 @@ type Bus interface {
 	Publish(ctx context.Context, topic Topic, payload any) error
 	Subscribe(topic Topic, handler Handler) func()
 	Close() error
+}
+
+// normalizeSeeds parses the KAFKA_BROKERS env value into seed broker
+// addresses. Kafka's classic client sets accept a "PLAINTEXT://" scheme
+// prefix; franz-go's SeedBrokers does not, so it is stripped before use.
+func normalizeSeeds(broker string) []string {
+	seeds := strings.Split(broker, ",")
+	for i := range seeds {
+		seeds[i] = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(seeds[i]), "PLAINTEXT://"))
+	}
+	return seeds
 }

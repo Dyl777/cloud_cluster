@@ -58,7 +58,7 @@ services:
     environment:
       - WALLET_PORT=8082
       - DATABASE_URL=postgres://gpuhub:gpuhub_dev@db:5432/gpuhub?sslmode=disable
-      - KAFKA_BROKERS=PLAINTEXT://kafka:9092
+      - KAFKA_BROKERS=kafka:9092
     ports:
       - "8082:8082"
     depends_on:
@@ -124,7 +124,7 @@ services:
     environment:
       - PROVISION_PORT=8085
       - DATABASE_URL=postgres://gpuhub:gpuhub_dev@db:5432/gpuhub?sslmode=disable
-      - KAFKA_BROKERS=PLAINTEXT://kafka:9092
+      - KAFKA_BROKERS=kafka:9092
     ports:
       - "8085:8085"
     depends_on:
@@ -147,7 +147,7 @@ services:
     command: ["./bin/notify"]
     environment:
       - NOTIFY_PORT=8088
-      - KAFKA_BROKERS=PLAINTEXT://kafka:9092
+      - KAFKA_BROKERS=kafka:9092
     ports:
       - "8088:8088"
     depends_on:
@@ -162,7 +162,7 @@ services:
       - COMPAT_API_KEY=${COMPAT_API_KEY:-demo-api-key}
       - COMPAT_USER_ID=${COMPAT_USER_ID:-user-demo}
       - DATABASE_URL=postgres://gpuhub:gpuhub_dev@db:5432/gpuhub?sslmode=disable
-      - KAFKA_BROKERS=PLAINTEXT://kafka:9092
+      - KAFKA_BROKERS=kafka:9092
     ports:
       - "8092:8092"
     depends_on:
