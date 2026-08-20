@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gpuhub/cloud/internal/settlement"
+	"github.com/gpuhub/cloud/internal/shared/events"
 	"github.com/gpuhub/cloud/internal/shared/httpx"
 )
 
@@ -14,7 +15,9 @@ func main() {
 		port = "8086"
 	}
 	s := httpx.NewServer(":" + port)
-	h := settlement.NewHandler(settlement.New())
+	svc := settlement.New()
+	svc.SetBus(events.NewFromEnv("settlement"))
+	h := settlement.NewHandler(svc)
 	h.Routes(s.Mux())
 	fmt.Println("settlement on " + port)
 	if err := s.Run(); err != nil {

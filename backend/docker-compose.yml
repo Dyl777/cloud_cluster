@@ -104,6 +104,7 @@ services:
       - PAYMENTS_PORT=8083
       - WALLET_URL=http://wallet:8082
       - PAYMGR_URL=http://paymgr:8089
+      - KAFKA_BROKERS=kafka:9092
     ports:
       - "8083:8083"
     depends_on:
@@ -139,6 +140,7 @@ services:
     environment:
       - SETTLEMENT_PORT=8086
       - BANK_URL=http://wallet:8082
+      - KAFKA_BROKERS=kafka:9092
     ports:
       - "8086:8086"
 

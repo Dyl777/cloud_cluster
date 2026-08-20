@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gpuhub/cloud/internal/payments"
+	"github.com/gpuhub/cloud/internal/shared/events"
 	"github.com/gpuhub/cloud/internal/shared/httpx"
 )
 
@@ -22,7 +23,9 @@ func main() {
 		paymgrURL = "http://localhost:8089"
 	}
 	s := httpx.NewServer(":" + port)
-	h := payments.NewHandler(payments.NewOrchestrator(walletURL, paymgrURL))
+	orch := payments.NewOrchestrator(walletURL, paymgrURL)
+	orch.SetBus(events.NewFromEnv("payments"))
+	h := payments.NewHandler(orch)
 	h.Routes(s.Mux())
 	fmt.Println("payments service on :" + port)
 	if err := s.Run(); err != nil {

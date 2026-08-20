@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gpuhub/cloud/internal/paymgr"
+	"github.com/gpuhub/cloud/internal/shared/events"
 )
 
 var ErrNoTopup = errors.New("topup not found")
@@ -22,6 +23,7 @@ type Orchestrator struct {
 	walletURL string
 	paymgr    *PaymgrClient
 	client    *http.Client
+	bus       events.Bus
 }
 
 // NewOrchestrator builds an orchestrator. paymgrURL delegates routing decisions.
@@ -107,6 +109,12 @@ func (o *Orchestrator) StartTopup(req TopupRequest) (PaymentIntent, error) {
 	o.mu.Lock()
 	o.topups[req.ID] = &req
 	o.mu.Unlock()
+	o.emit(events.TopicPaymentCreated, PaymentEvent{
+		ID: req.ID, UserID: req.UserID, Method: string(req.Method),
+		Provider: intent.Provider, ChargeID: intent.ChargeID,
+		AmountUnits: req.Subunits, Currency: req.Currency,
+		Status: req.Status, Reference: req.Reference,
+	})
 	return intent, nil
 }
 
@@ -128,7 +136,16 @@ func (o *Orchestrator) ConfirmTopup(topupID string) error {
 	}
 	req.Status = "confirmed"
 	req.CompletedAt = time.Now()
-	return o.creditWallet(req)
+	if err := o.creditWallet(req); err != nil {
+		return err
+	}
+	o.emit(events.TopicPaymentCompleted, PaymentEvent{
+		ID: req.ID, UserID: req.UserID, Method: string(req.Method),
+		Provider: req.Adapter, ChargeID: req.Reference,
+		AmountUnits: req.Subunits, Currency: req.Currency,
+		Status: req.Status, Reference: req.Reference, CompletedAt: req.CompletedAt,
+	})
+	return nil
 }
 
 func (o *Orchestrator) Get(topupID string) (*TopupRequest, bool) {
