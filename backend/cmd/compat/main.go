@@ -38,7 +38,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		if err := db.MigrateAll(sqlDB); err != nil {
+		if err := db.MigrateAll(url); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

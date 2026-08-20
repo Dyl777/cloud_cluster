@@ -20,7 +20,7 @@ func TestPostgresPersistence(t *testing.T) {
 		t.Fatalf("connect: %v", err)
 	}
 	defer sqlDB.Close()
-	if err := db.MigrateAll(sqlDB); err != nil {
+	if err := db.MigrateAll(url); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 

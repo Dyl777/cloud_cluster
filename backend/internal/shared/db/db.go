@@ -9,6 +9,7 @@ import (
 	"embed"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,6 +22,19 @@ var migrationsFS embed.FS
 // (postgres://user:pass@host:5432/dbname). It verifies connectivity before
 // returning.
 func Connect(databaseURL string) (*sql.DB, error) {
+	return connectWith(databaseURL, "")
+}
+
+// connectWith opens a pool optionally forcing a pgx query exec mode (used by
+// migrations so multi-statement DDL files run through the simple protocol).
+func connectWith(databaseURL, execMode string) (*sql.DB, error) {
+	if execMode != "" && !strings.Contains(databaseURL, "default_query_exec_mode") {
+		sep := "&"
+		if !strings.Contains(databaseURL, "?") {
+			sep = "?"
+		}
+		databaseURL += sep + "default_query_exec_mode=" + execMode
+	}
 	sqlDB, err := sql.Open("pgx", databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
@@ -39,8 +53,16 @@ func Connect(databaseURL string) (*sql.DB, error) {
 }
 
 // MigrateAll applies every bundled migration (wallet, identity) once, in
-// lexicographic order. Safe to call from any service at startup.
-func MigrateAll(sqlDB *sql.DB) error { return Migrate(sqlDB, migrationsFS) }
+// lexicographic order. Safe to call from any service at startup. It uses its
+// own short-lived connection so the application pool keeps its normal mode.
+func MigrateAll(databaseURL string) error {
+	sqlDB, err := connectWith(databaseURL, "simple_protocol")
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+	return Migrate(sqlDB, migrationsFS)
+}
 
 // Migrate applies each *.sql file from fsys in lexicographic order, once per
 // file (tracked in schema_migrations). A Postgres advisory lock serializes
@@ -69,10 +91,24 @@ func Migrate(sqlDB *sql.DB, fsys embed.FS) error {
 	if err != nil {
 		return fmt.Errorf("read migrations: %w", err)
 	}
+	// Patterns like "migrations/*.sql" embed both the root and the folder;
+	// equalize on the actual directory holding the files.
 	names := make([]string, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() {
 			names = append(names, e.Name())
+		}
+	}
+	if len(names) == 0 && len(entries) == 1 {
+		dir := entries[0].Name()
+		entries, err = fsys.ReadDir(dir)
+		if err != nil {
+			return fmt.Errorf("read migrations/%s: %w", dir, err)
+		}
+		for _, e := range entries {
+			if !e.IsDir() {
+				names = append(names, dir+"/"+e.Name())
+			}
 		}
 	}
 	sort.Strings(names)
