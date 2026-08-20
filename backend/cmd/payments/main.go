@@ -17,8 +17,12 @@ func main() {
 	if walletURL == "" {
 		walletURL = "http://localhost:8082"
 	}
+	paymgrURL := os.Getenv("PAYMGR_URL")
+	if paymgrURL == "" {
+		paymgrURL = "http://localhost:8089"
+	}
 	s := httpx.NewServer(":" + port)
-	h := payments.NewHandler(payments.NewOrchestrator(walletURL))
+	h := payments.NewHandler(payments.NewOrchestrator(walletURL, paymgrURL))
 	h.Routes(s.Mux())
 	fmt.Println("payments service on :" + port)
 	if err := s.Run(); err != nil {

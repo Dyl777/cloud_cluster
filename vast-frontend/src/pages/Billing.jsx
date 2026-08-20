@@ -3,10 +3,12 @@ import { ArrowDownLeft, ArrowUpRight, CreditCard, DollarSign, Plus, Wallet } fro
 import { useStore } from "../store";
 import { fmtDate, fmtMoney } from "../data/mock";
 import { Badge, PageHead, StatCard } from "../components/ui";
+import TopUpModal from "../components/TopUpModal";
 
 export default function Billing() {
-  const { account, transactions, topUp } = useStore();
+  const { account, transactions, paymentMethods } = useStore();
   const [amount, setAmount] = useState(25);
+  const [showTopUp, setShowTopUp] = useState(false);
 
   const spent = transactions.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);
 
@@ -30,18 +32,27 @@ export default function Billing() {
             ))}
             <input className="input" style={{ width: 110 }} type="number" min="1" value={amount} onChange={(e) => setAmount(+e.target.value)} />
           </div>
-          <button className="btn btn-green mt" style={{ width: "100%", justifyContent: "center" }} onClick={() => topUp(amount)}>
+          <button
+            className="btn btn-green mt"
+            style={{ width: "100%", justifyContent: "center" }}
+            onClick={() => setShowTopUp(true)}
+          >
             <Plus size={15} /> Add {fmtMoney(amount)} to balance
           </button>
-          <div className="small dim mt">Simulated checkout — no real payment is processed.</div>
+          <div className="small dim mt">
+            Top up via your saved payment method
+            {paymentMethods.some((m) => m.kind === "mobile_money")
+              ? " — mobile money dials USSD on your SIM (phone or laptop modem via simbridge)."
+              : "."}
+          </div>
         </div>
 
         <div className="card">
           <div className="card-title"><h3>Account</h3><Badge tone="blue">{account.plan}</Badge></div>
           <div className="kv">
             <div style={{ display: "contents" }}><span className="k">Member since</span><span className="v">{new Date(account.created).toLocaleDateString(undefined, { month: "long", year: "numeric" })}</span></div>
+            <div style={{ display: "contents" }}><span className="k">Payment methods</span><span className="v">{paymentMethods.length} saved</span></div>
             <div style={{ display: "contents" }}><span className="k">Pending charges</span><span className="v">{fmtMoney(account.pending)}</span></div>
-            <div style={{ display: "contents" }}><span className="k">Credits</span><span className="v">{account.credits.toFixed(2)}</span></div>
             <div style={{ display: "contents" }}><span className="k">Default currency</span><span className="v">USD</span></div>
           </div>
         </div>
@@ -77,6 +88,8 @@ export default function Billing() {
           </table>
         </div>
       </div>
+
+      {showTopUp && <TopUpModal amount={amount} onClose={() => setShowTopUp(false)} />}
     </div>
   );
 }

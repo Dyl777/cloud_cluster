@@ -1,8 +1,7 @@
 # GPU Cloud Platform — Backend (Go microservices)
 
 A multi-rail GPU hosting platform. Users **top up** money through three
-payment rails (carrier mobile-money behind a VM proxy bridge, a global bank
-account, or a third-party fintech app); the platform then **sources GPU
+payment rails (user mobile-money via USSD on their SIM, bank, or fintech); the platform then **sources GPU
 compute from existing cloud providers** via adapters and **pays those
 providers from its pooled bank/fintech account**.
 
@@ -24,21 +23,30 @@ backend/
 |--------------|------|----------------|
 | identity     | 8081 | accounts (register) |
 | wallet       | 8082 | balances, holds, immutable ledger |
-| payments     | 8083 | top-up orchestration across payment rails |
+| payments     | 8083 | top-up orchestration (delegates routing to paymgr) |
 | marketplace  | 8084 | GPU availability aggregation from cloud providers |
 | provision    | 8085 | instance lifecycle (create/stop/destroy) |
 | settlement   | 8086 | money-out: pays cloud providers from pooled bank account |
+| paymgr       | 8089 | backend payment manager — routes top-ups to rails |
+| mobilevm     | 8090 | cross-rail transfers (number↔number, fintech↔bank, dial-up) |
+| mobilegateway| 8091 | physical SIM node registry, dispatch, load balance |
 | notify       | 8088 | event/webhook ingestion |
+| compat       | 8092 | Vast.ai-compatible `/api/v0` gateway (vast-cli / SDK / skypilot) |
+
+**simbridge** (`go run ./cmd/simbridge`, port 9090) runs on the **user's
+device** — not in docker-compose — to enter USSD codes on a phone SIM or
+laptop USB modem.
 
 ## The two money/GPU loops
 
 ```mermaid
 flowchart LR
   U[User] -->|top up| W[wallet]
-  U -->|cash-in via| P[payments orchestrator]
-  P --> MM[Mobile money / VM-bridge]
-  P --> BK[Bank account]
-  P --> FT[Fintech app]
+  U -->|cash-in via| P[payments]
+  P --> PM[paymgr]
+  PM --> G[mobilegateway → nodes]
+  PM --> VM[mobilevm]
+  PM -->|direct| SB[simbridge on user device]
   MM & BK & FT -->|confirm| W
   W -->|Hold| PR[provision]
   PR --> MP[marketplace]

@@ -1,12 +1,20 @@
 # identity — Accounts
 
-The credibility layer: registers users. In the skeleton this is an
-in-memory store; swap in Postgres + hashed credentials + JWT issues for
-production.
+The credibility layer: registers users, assigns roles, and exposes the
+superadmin user-management surface. In the skeleton this is an in-memory
+store; swap in Postgres + hashed credentials + JWT issues for production.
 
 ```
-POST /users    register (email, name)
+POST   /users                        register (email, name) → role "user"
+GET    /users/current?email=…        fetch one user (incl. role)
+GET    /admin/users?actor=<email>    list every user (admin+ only)
+POST   /admin/users/{email}/role     change a user's role (admin+ only)
 ```
+
+Roles are `user` < `admin` < `superadmin`. `cmd/identity` seeds the bootstrap
+account `admin@gpuhub.dev` (role `superadmin`). Admin endpoints check the
+`?actor=` email has at least the `admin` role (stand-in for real auth
+tokens).
 
 ## Use case
 

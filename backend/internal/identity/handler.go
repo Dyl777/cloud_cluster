@@ -17,4 +17,7 @@ func NewHandler(svc *Service) *Handler {
 // Routes registers all identity routes on the given mux.
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /users", h.register)
+	mux.HandleFunc("GET /users/current", h.current)
+	mux.HandleFunc("GET /admin/users", h.adminList)
+	mux.HandleFunc("POST /admin/users/{email}/role", h.adminSetRole)
 }

@@ -49,3 +49,30 @@ func (m Money) Sub(o Money) (Money, error) {
 
 // IsNegative reports whether the amount is below zero.
 func (m Money) IsNegative() bool { return m.Subunits < 0 }
+
+// Float returns the amount as a decimal currency value (e.g. 25.00).
+func (m Money) Float() float64 { return float64(m.Subunits) / 1_000_000 }
+
+// ValidCurrency reports whether the code is a recognized ISO-ish code.
+func ValidCurrency(code string) bool {
+	c := strings.ToUpper(code)
+	if len(c) != 3 {
+		return false
+	}
+	for _, r := range c {
+		if r < 'A' || r > 'Z' {
+			return false
+		}
+	}
+	return true
+}
+
+// Normalize upper-cases a currency code and validates it.
+// Returns an error for malformed codes.
+func NormalizeCurrency(code string) (string, error) {
+	c := strings.ToUpper(code)
+	if !ValidCurrency(c) {
+		return "", errors.New("invalid currency code: " + code)
+	}
+	return c, nil
+}

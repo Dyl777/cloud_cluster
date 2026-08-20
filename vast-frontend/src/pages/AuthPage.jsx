@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShieldCheck, Cpu, Gauge, Wallet, Server } from "lucide-react";
-import { useAuth } from "../auth";
+import { ShieldCheck, Cpu, Gauge, Wallet, Server, Shield } from "lucide-react";
+import { useAuth, SUPERADMIN_EMAIL } from "../auth";
 import { useStore } from "../store";
 
 function AuthShell({ title, subtitle, children, side }) {
@@ -35,7 +35,7 @@ function AuthShell({ title, subtitle, children, side }) {
 }
 
 export default function AuthPage({ mode }) {
-  const { login } = useAuth();
+  const { login, loginAs } = useAuth();
   const { account } = useStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState(account.user);
@@ -62,6 +62,11 @@ export default function AuthPage({ mode }) {
     }
     login(email, apiKey.replace(/\s/g, "") || "abcdef0123456789abcdef0123456789");
     navigate("/");
+  }
+
+  function enterAdmin() {
+    loginAs(SUPERADMIN_EMAIL);
+    navigate("/admin");
   }
 
   const side = {
@@ -105,6 +110,9 @@ export default function AuthPage({ mode }) {
         {isLogin ? "New to Vast?" : "Already have an account?"}{" "}
         <Link to={isLogin ? "/signup" : "/login"}>{isLogin ? "Create an account" : "Sign in"}</Link>
       </div>
+      <button className="btn btn-sm" onClick={enterAdmin} style={{ alignSelf: "center" }}>
+        <Shield size={14} color="var(--purple)" /> Superadmin demo (admin@vast.ai)
+      </button>
     </AuthShell>
   );
 }

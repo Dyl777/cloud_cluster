@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Box, CreditCard, Cpu, Gauge, LayoutDashboard, LogOut, Moon, Server, Settings,
-  ShoppingCart, Sun, Wallet, Zap,
+  Box, ChevronDown, CreditCard, Cpu, Gauge, LayoutDashboard, LogOut, Moon, Server, Settings,
+  ShieldCheck, ShoppingCart, Sun, Users, Wallet, Zap,
 } from "lucide-react";
 import { useStore } from "../store";
 import { useAuth } from "../auth";
@@ -20,9 +20,51 @@ export function NavLink({ to, icon: Icon, children }) {
   );
 }
 
+const adminLinks = [
+  { to: "/admin", icon: LayoutDashboard, label: "Overview" },
+  { to: "/admin/users", icon: Users, label: "Users" },
+  { to: "/admin/offers", icon: ShoppingCart, label: "Offers" },
+  { to: "/admin/hosts", icon: Server, label: "Hosts" },
+  { to: "/admin/instances", icon: Box, label: "Instances" },
+  { to: "/admin/payments", icon: CreditCard, label: "Payments" },
+];
+
+export function AdminMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const { pathname } = useLocation();
+  const insideAdmin = pathname.startsWith("/admin");
+
+  useEffect(() => {
+    function onClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  return (
+    <div className="admin-menu" ref={ref}>
+      <button className={`btn btn-sm admin-trigger${insideAdmin ? " active" : ""}`} onClick={() => setOpen((o) => !o)}>
+        <ShieldCheck size={14} /> Admin <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div className="admin-pop">
+          {adminLinks.map(({ to, icon: Icon, label }) => (
+            <Link key={to} to={to} onClick={() => setOpen(false)} className={pathname === to || (to !== "/admin" && pathname.startsWith(to)) ? "active" : ""}>
+              <Icon size={14} />
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Topbar() {
   const { account, user } = useStore();
-  const { logout } = useAuth();
+  const { logout, isSuperadmin } = useAuth();
   const { theme, toggle } = useTheme();
   const initials = user?.name
     .split(" ")
@@ -48,6 +90,7 @@ export function Topbar() {
         <button className="btn btn-ghost btn-sm" onClick={toggle} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
           {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
         </button>
+        {isSuperadmin && <AdminMenu />}
         <Link to="/billing" className="balance-chip" title="Account balance">
           <Wallet size={14} />
           <span className="label">balance</span>

@@ -5,6 +5,12 @@ const StoreContext = createContext(null);
 
 const STORE_KEY = "vast-store-v1";
 
+const DEFAULT_PAYMENT_METHODS = [
+  { id: "pm-mtn", kind: "mobile_money", label: "MTN Mobile Money", carrier: "mtn", phone: "677123456" },
+  { id: "pm-orange", kind: "mobile_money", label: "Orange Money", carrier: "orange", phone: "699987654" },
+  { id: "pm-bank", kind: "bank", label: "Bank wire", provider: "wire", account_ref: "••••4821" },
+];
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -22,15 +28,21 @@ export function StoreProvider({ children }) {
   const [hosts, setHosts] = useState(persisted?.hosts ?? api.hosts);
   const [account, setAccount] = useState(persisted?.account ?? api.account);
   const [transactions, setTransactions] = useState(persisted?.transactions ?? api.transactions);
+  const [paymentMethods, setPaymentMethods] = useState(
+    persisted?.paymentMethods ?? DEFAULT_PAYMENT_METHODS,
+  );
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ instances, offers, hosts, account, transactions }));
+      localStorage.setItem(
+        STORE_KEY,
+        JSON.stringify({ instances, offers, hosts, account, transactions, paymentMethods }),
+      );
     } catch {
       /* ignore */
     }
-  }, [instances, offers, hosts, account, transactions]);
+  }, [instances, offers, hosts, account, transactions, paymentMethods]);
 
   useEffect(() => {
     if (!toast) return;
@@ -102,17 +114,27 @@ export function StoreProvider({ children }) {
     setTransactions((prev) => [tx, ...prev]);
   }
 
-  function topUp(amount) {
+  function completeTopUp(amount, label = "Credit top-up") {
     setAccount((prev) => ({ ...prev, balance: +(prev.balance + amount).toFixed(2) }));
     addTransaction({
       id: Math.floor(Math.random() * 9000) + 100000,
       time: new Date().toISOString(),
       type: "credit",
-      label: "Credit top-up",
+      label,
       amount,
       status: "completed",
     });
     notify(`Added $${amount.toFixed(2)} to balance.`);
+  }
+
+  function addPaymentMethod(method) {
+    setPaymentMethods((prev) => [...prev, method]);
+    notify("Payment method saved.");
+  }
+
+  function removePaymentMethod(id) {
+    setPaymentMethods((prev) => prev.filter((m) => m.id !== id));
+    notify("Payment method removed.");
   }
 
   function addHost(host) {
@@ -126,11 +148,14 @@ export function StoreProvider({ children }) {
     hosts,
     account,
     transactions,
+    paymentMethods,
     templates: api.templates,
     rentOffer,
     setInstanceStatus,
     destroyInstance,
-    topUp,
+    completeTopUp,
+    addPaymentMethod,
+    removePaymentMethod,
     addTransaction,
     addHost,
     notify,

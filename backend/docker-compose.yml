@@ -15,16 +15,48 @@ services:
     ports:
       - "8082:8082"
 
+  mobilevm:
+    build: .
+    command: ["./bin/mobilevm"]
+    environment:
+      - MOBILE_VM_PORT=8090
+    ports:
+      - "8090:8090"
+
+  mobilegateway:
+    build: .
+    command: ["./bin/mobilegateway"]
+    environment:
+      - MOBILE_GATEWAY_PORT=8091
+      - GATEWAY_TOKEN=dev-gateway-token
+    ports:
+      - "8091:8091"
+
+  paymgr:
+    build: .
+    command: ["./bin/paymgr"]
+    environment:
+      - PAYMGR_PORT=8089
+      - MOBILE_GATEWAY_URL=http://mobilegateway:8091
+      - MOBILE_VM_URL=http://mobilevm:8090
+    ports:
+      - "8089:8089"
+    depends_on:
+      - mobilegateway
+      - mobilevm
+
   payments:
     build: .
     command: ["./bin/payments"]
     environment:
       - PAYMENTS_PORT=8083
       - WALLET_URL=http://wallet:8082
+      - PAYMGR_URL=http://paymgr:8089
     ports:
       - "8083:8083"
     depends_on:
       - wallet
+      - paymgr
 
   marketplace:
     build: .
@@ -58,3 +90,13 @@ services:
       - NOTIFY_PORT=8088
     ports:
       - "8088:8088"
+
+  compat:
+    build: .
+    command: ["./bin/compat"]
+    environment:
+      - COMPAT_PORT=8092
+      - COMPAT_API_KEY=${COMPAT_API_KEY:-demo-api-key}
+      - COMPAT_USER_ID=${COMPAT_USER_ID:-user-demo}
+    ports:
+      - "8092:8092"

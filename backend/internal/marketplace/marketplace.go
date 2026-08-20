@@ -17,6 +17,11 @@ type Offer struct {
 	Datacenter  bool    `json:"datacenter"`
 	Verified    bool    `json:"verified"`
 	Reliability float64 `json:"reliability2"`
+	Rented      bool    `json:"rented"`
+	Rentable    bool    `json:"rentable"`
+	Score       float64 `json:"score"`
+	InetDown    int     `json:"inet_down"`
+	InetUp      int     `json:"inet_up"`
 }
 
 // Provider is a cloud backend we can source GPUs from.

@@ -1,50 +1,48 @@
 package payments
 
 import (
-	"errors"
 	"time"
+
+	"github.com/gpuhub/cloud/internal/shared/payconfig"
 )
 
-// MobileMoneyProvider models cash-in via a carrier global mobile-money
-// account. Requests are routed through a CarrierBridge, which may forward
-// to a feeder VM that proxies commands onwards to the physical machine or
-// phone holding the number. All of this is simulated for the skeleton.
+// MobileMoneyProvider handles top-ups from the user's line to a platform collection account.
 type MobileMoneyProvider struct {
-	bridge *CarrierBridge
+	sys payconfig.SystemPaymentConfig
 }
 
-// CarrierBridge is the proxying layer between us and the carrier rails.
-type CarrierBridge struct {
-	UseVMProxy bool // when true, commands round-trip through the feeder VM
+func NewMobileMoney() *MobileMoneyProvider {
+	return &MobileMoneyProvider{sys: payconfig.DefaultSystemConfig()}
 }
 
-// NewMobileMoney builds a provider with the given bridge.
-func NewMobileMoney(bridge *CarrierBridge) *MobileMoneyProvider {
-	if bridge == nil {
-		bridge = &CarrierBridge{}
-	}
-	return &MobileMoneyProvider{bridge: bridge}
-}
-
-func (p *MobileMoneyProvider) Name() string { return "carrier-mobile-money" }
-
-var ErrUnreachable = errors.New("carrier bridge unreachable")
+func (p *MobileMoneyProvider) Name() string { return "mobile-money" }
 
 func (p *MobileMoneyProvider) Create(req TopupRequest) (PaymentIntent, error) {
-	if p.bridge.UseVMProxy {
-		p.bridge.vmProxyWrite(req)
+	dest, err := p.sys.ResolveDestination(string(req.Method), req.Carrier, req.RailProvider)
+	if err != nil {
+		return PaymentIntent{}, err
+	}
+	units := amountUnits(req.Subunits)
+	ussd, err := BuildUSSD(req.Carrier, dest.Number, units)
+	if err != nil {
+		return PaymentIntent{}, err
 	}
 	chargeID := "mm" + itoa(time.Now().UnixNano()) + reqID(req.UserID)
-	return PaymentIntent{ChargeID: chargeID, Provider: p.Name(), Raw: "simulated mobile-money intent"}, nil
+	return PaymentIntent{
+		ChargeID:          chargeID,
+		Provider:          p.Name(),
+		USSDCode:          ussd,
+		Carrier:           req.Carrier,
+		Phone:             req.Phone,
+		AmountUnits:       units,
+		UserPhone:         req.Phone,
+		SystemDestination: dest,
+		RoutePath:         "direct",
+		Raw:               "pay from user SIM → platform " + dest.Number,
+	}, nil
 }
 
 func (p *MobileMoneyProvider) Confirm(chargeID string) (bool, error) {
 	_ = chargeID
 	return true, nil
-}
-
-func (b *CarrierBridge) vmProxyWrite(req TopupRequest) {
-	// Stand-in for: POST to bridge VM → VM issues a carrier request to
-	// the physical phone/number. Simulated, no network hop.
-	_ = req
 }

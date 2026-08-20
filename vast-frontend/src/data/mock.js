@@ -267,6 +267,52 @@ function buildTemplates() {
   }));
 }
 
+const USER_FIRST = ["maya", "liam", "sophia", "noah", "zara", "kenji", "ade", "jelena", "omar", "priya", "yuval", "mia", "diego", "hannah", "kofi", "ines", "raj", "lucia", "tomas", "elsa"];
+const USER_LAST = ["chen", "okafor", "novak", "sato", "bekele", "rossi", "khan", "garcia", "hill", "iwasa", "lopez", "müller", "obrien", "petrov", "tanaka", "weber", "yilmaz", "aldridge", "kasongo", "moreau"];
+
+function buildUsers() {
+  const users = [];
+  const now = Date.now();
+  const roles = ["user", "user", "user", "user", "user", "user", "admin", "user", "user", "host"];
+  for (let i = 0; i < 24; i++) {
+    const first = pick(USER_FIRST);
+    const last = pick(USER_LAST);
+    const email = `${first}.${last}@${pick(["gmail.com", "outlook.com", "hey.com", "proton.me", "bose.dev"])}`;
+    const age = Math.floor(rand(3, 700));
+    users.push({
+      id: 3000 + i + 1,
+      email,
+      name: `${first.charAt(0).toUpperCase() + first.slice(1)} ${last.charAt(0).toUpperCase() + last.slice(1)}`,
+      role: i === 0 ? "superadmin" : pick(roles),
+      status: Math.random() < 0.88 ? "active" : Math.random() < 0.5 ? "suspended" : "pending",
+      balance: +rand(0, 480).toFixed(2),
+      spent: +rand(0, 9200).toFixed(2),
+      earned: Math.random() < 0.4 ? +rand(0, 3400).toFixed(2) : 0,
+      gpu_hours: Math.round(rand(0, 8200)),
+      plan: pick(["Pay-as-you-go", "Pay-as-you-go", "monthly"]),
+      created: new Date(now - age * 86400000).toISOString(),
+      last_seen: new Date(now - rand(0.2, 40) * 3600000).toISOString(),
+      api_key: Math.random().toString(16).slice(2, 34),
+    });
+  }
+  return users.sort((a, b) => new Date(b.created) - new Date(a.created));
+}
+
+function buildActivity() {
+  const out = [];
+  const now = new Date();
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    out.push({
+      date: d.toISOString().slice(0, 10),
+      signups: Math.round(rand(2, 34)),
+      revenue: +rand(180, 2200).toFixed(2),
+      gpu_hours: Math.round(rand(900, 14000)),
+    });
+  }
+  return out;
+}
+
 export const api = {
   offers: buildOffers(),
   instances: buildInstances(),
@@ -274,6 +320,8 @@ export const api = {
   account: buildAccount(),
   transactions: buildTransactions(),
   templates: buildTemplates(),
+  users: buildUsers(),
+  activity: buildActivity(),
 };
 
 export function fmtMoney(n, digits = 2) {

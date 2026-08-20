@@ -1,6 +1,6 @@
-.PHONY: build run identity wallet payments marketplace provision settlement notify clean test
+.PHONY: build run identity wallet payments marketplace provision settlement notify simbridge paymgr mobilevm mobilegateway compat clean test
 
-SERVICES := identity wallet payments marketplace provision settlement notify
+SERVICES := identity wallet payments marketplace provision settlement notify simbridge paymgr mobilevm mobilegateway compat
 
 build: $(SERVICES)
 

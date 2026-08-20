@@ -14,7 +14,9 @@ func main() {
 		port = "8081"
 	}
 	s := httpx.NewServer(":" + port)
-	h := identity.NewHandler(identity.New())
+	svc := identity.New()
+	svc.Seed("usr-superadmin", "admin@gpuhub.dev", "Platform Superadmin")
+	h := identity.NewHandler(svc)
 	h.Routes(s.Mux())
 	fmt.Println("identity service on :" + port)
 	if err := s.Run(); err != nil {

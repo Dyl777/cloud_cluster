@@ -360,6 +360,47 @@ label.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; 
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--text); border-bottom-color: #fd8c73; }
 
+.admin-tabs .tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  text-decoration: none; border-radius: 0;
+}
+.admin-tabs .tab svg { width: 14px; height: 14px; color: var(--text-mute); }
+.admin-tabs .tab.active { color: var(--purple); border-bottom-color: var(--purple); }
+.admin-tabs .tab.active svg { color: var(--purple); }
+
+/* ---------- Admin menu (topbar dropdown) ---------- */
+.admin-menu { position: relative; }
+.admin-trigger { border-color: var(--border-soft); }
+.admin-trigger.active { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
+.admin-trigger.active svg { color: var(--purple); }
+.admin-pop {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  min-width: 190px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 50;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.admin-pop a {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 11px;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 13px; font-weight: 500;
+  text-decoration: none;
+}
+.admin-pop a:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
+.admin-pop a.active { background: var(--purple-bg); color: var(--purple); font-weight: 600; }
+.admin-pop a svg { width: 14px; height: 14px; color: var(--text-mute); }
+.admin-pop a.active svg { color: var(--purple); }
+
+/* ---------- Admin tables ---------- */
+.admin-table td { padding: 7px 8px; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.admin-table tbody tr:hover { background: var(--bg-soft); }
+
 /* ---------- Offer grid ---------- */
 .offer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 .offer-card { display: flex; flex-direction: column; gap: 12px; }

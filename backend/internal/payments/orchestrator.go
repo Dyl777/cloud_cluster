@@ -7,54 +7,109 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gpuhub/cloud/internal/paymgr"
 )
 
 var ErrNoTopup = errors.New("topup not found")
 
-// Orchestrator routes top-up requests to adapters and settles them into
-// the wallet service over REST.
+// Orchestrator routes top-up requests through paymgr and settles into wallet.
 type Orchestrator struct {
 	mu        sync.Mutex
 	topups    map[string]*TopupRequest
 	registry  *registry
-	walletURL string // e.g. http://wallet:8082
+	methods   *MethodStore
+	walletURL string
+	paymgr    *PaymgrClient
 	client    *http.Client
 }
 
-// NewOrchestrator builds an orchestrator with all providers registered.
-func NewOrchestrator(walletURL string) *Orchestrator {
+// NewOrchestrator builds an orchestrator. paymgrURL delegates routing decisions.
+func NewOrchestrator(walletURL, paymgrURL string) *Orchestrator {
 	r := newRegistry()
-	r.add(MethodMobileMoney, NewMobileMoney(&CarrierBridge{UseVMProxy: true}))
+	r.add(MethodMobileMoney, NewMobileMoney())
 	r.add(MethodBank, NewBank("bank"))
 	r.add(MethodFintech, NewBank("fintech"))
 	return &Orchestrator{
 		topups:    make(map[string]*TopupRequest),
 		registry:  r,
+		methods:   newMethodStore(),
 		walletURL: walletURL,
-		client:    &http.Client{Timeout: 5 * time.Second},
+		paymgr: &PaymgrClient{
+			BaseURL: paymgrURL,
+			Client:  &http.Client{Timeout: 10 * time.Second},
+		},
+		client: &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
-// StartTopup creates a payment intent on the routed provider.
+func (o *Orchestrator) Catalog() PaymentCatalog { return DefaultCatalog() }
+
+func (o *Orchestrator) SystemConfig() SystemPaymentConfig { return DefaultSystemConfig() }
+
+func (o *Orchestrator) ListMethods(userID string) []SavedMethod {
+	return o.methods.List(userID)
+}
+
+func (o *Orchestrator) AddMethod(m SavedMethod) SavedMethod {
+	return o.methods.Add(m)
+}
+
+func (o *Orchestrator) DeleteMethod(userID, methodID string) bool {
+	return o.methods.Delete(userID, methodID)
+}
+
+// StartTopup resolves the saved method, asks paymgr where to route, stores pending.
 func (o *Orchestrator) StartTopup(req TopupRequest) (PaymentIntent, error) {
+	if err := o.resolveTopup(&req); err != nil {
+		return PaymentIntent{}, err
+	}
+
 	provider, err := o.registry.get(req.Method)
 	if err != nil {
 		return PaymentIntent{}, err
 	}
-	intent, err := provider.Create(req)
-	if err != nil {
-		return PaymentIntent{}, err
+
+	var intent PaymentIntent
+
+	if o.paymgr.BaseURL != "" {
+		res, err := o.paymgr.StartTopup(paymgr.TopupInput{
+			ID:              req.ID,
+			UserID:          req.UserID,
+			Method:          string(req.Method),
+			PaymentMethodID: req.PaymentMethodID,
+			Subunits:        req.Subunits,
+			Currency:        req.Currency,
+			Carrier:         req.Carrier,
+			Phone:           req.Phone,
+			RailProvider:    req.RailProvider,
+			AccountRef:      req.AccountRef,
+		})
+		if err != nil {
+			return PaymentIntent{}, err
+		}
+		intent = routeToIntent(res, provider.Name())
+		intent.Carrier = req.Carrier
+		intent.Phone = req.Phone
+		intent.UserPhone = req.Phone
+		intent.AmountUnits = amountUnits(req.Subunits)
+	} else {
+		intent, err = provider.Create(req)
+		if err != nil {
+			return PaymentIntent{}, err
+		}
 	}
+
 	req.Status = "pending"
-	req.Provider = intent.Provider
+	req.Adapter = intent.Provider
 	req.Reference = intent.ChargeID
+	req.CreatedAt = time.Now()
 	o.mu.Lock()
 	o.topups[req.ID] = &req
 	o.mu.Unlock()
 	return intent, nil
 }
 
-// ConfirmTopup resolves the charge and credits the wallet.
 func (o *Orchestrator) ConfirmTopup(topupID string) error {
 	o.mu.Lock()
 	req, ok := o.topups[topupID]
@@ -76,7 +131,6 @@ func (o *Orchestrator) ConfirmTopup(topupID string) error {
 	return o.creditWallet(req)
 }
 
-// Get returns a stored top-up by id.
 func (o *Orchestrator) Get(topupID string) (*TopupRequest, bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()

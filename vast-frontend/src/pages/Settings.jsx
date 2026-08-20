@@ -1,18 +1,33 @@
-import { useState } from "react";
-import { Copy, Eye, EyeOff, KeyRound, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy, Eye, EyeOff, KeyRound, Plus, Smartphone, Trash2 } from "lucide-react";
 import { useAuth } from "../auth";
 import { useStore } from "../store";
+import { fetchCatalog } from "../api/payments";
 import { Badge, PageHead } from "../components/ui";
 
 export default function Settings() {
   const { user, logout } = useAuth();
-  const { notify, account } = useStore();
+  const { notify, account, paymentMethods, addPaymentMethod, removePaymentMethod } = useStore();
   const [keys, setKeys] = useState([
     { name: "Default API key", value: user?.apiKey || "abc123def456abc123def456abc123de", scopes: ["all"], lastUsed: "2h ago" },
   ]);
   const [show, setShow] = useState(false);
   const [newKey, setNewKey] = useState("");
   const [creating, setCreating] = useState(false);
+  const [catalog, setCatalog] = useState(null);
+  const [addingPay, setAddingPay] = useState(false);
+  const [payForm, setPayForm] = useState({
+    kind: "mobile_money",
+    label: "",
+    carrier: "mtn",
+    phone: "",
+    provider: "wire",
+    account_ref: "",
+  });
+
+  useEffect(() => {
+    fetchCatalog().then(setCatalog).catch(() => {});
+  }, []);
 
   function createKey(e) {
     e.preventDefault();
@@ -29,9 +44,22 @@ export default function Settings() {
     notify("Copied to clipboard.");
   }
 
+  function savePaymentMethod(e) {
+    e.preventDefault();
+    const id = "pm-" + Math.random().toString(36).slice(2, 9);
+    const label = payForm.label || (
+      payForm.kind === "mobile_money"
+        ? `${payForm.carrier.toUpperCase()} · ${payForm.phone}`
+        : `${payForm.kind} · ${payForm.provider}`
+    );
+    addPaymentMethod({ id, ...payForm, label });
+    setAddingPay(false);
+    setPayForm({ kind: "mobile_money", label: "", carrier: "mtn", phone: "", provider: "wire", account_ref: "" });
+  }
+
   return (
     <div>
-      <PageHead title="Settings" sub="Account, API keys and CLI access for {username}." />
+      <PageHead title="Settings" sub="Account, payment methods, API keys and CLI access." />
 
       <div className="card">
         <div className="card-title"><h3>Profile</h3></div>
@@ -45,6 +73,65 @@ export default function Settings() {
             <Badge tone="green">plan: {account.plan}</Badge>
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">
+          <h3>Payment methods</h3>
+          <button className="btn btn-sm btn-primary" onClick={() => setAddingPay((c) => !c)}><Plus size={13} /> Add</button>
+        </div>
+        <p className="small dim" style={{ marginTop: -8 }}>
+          Saved methods used at top-up. Mobile money (Orange, MTN) builds a USSD code like{" "}
+          <code>*126*16*NUM*AMT#</code> and dials it on your SIM via local simbridge.
+        </p>
+
+        {addingPay && (
+          <form onSubmit={savePaymentMethod} style={{ display: "flex", flexDirection: "column", gap: 10, margin: "12px 0" }}>
+            <select className="input" value={payForm.kind} onChange={(e) => setPayForm((f) => ({ ...f, kind: e.target.value }))}>
+              <option value="mobile_money">Mobile money</option>
+              <option value="bank">Bank</option>
+              <option value="fintech">Fintech</option>
+            </select>
+            {payForm.kind === "mobile_money" ? (
+              <>
+                <select className="input" value={payForm.carrier} onChange={(e) => setPayForm((f) => ({ ...f, carrier: e.target.value }))}>
+                  {(catalog?.mobile_money || [{ id: "mtn", name: "MTN" }, { id: "orange", name: "Orange" }]).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <input className="input" placeholder="Phone number (e.g. 677123456)" value={payForm.phone} onChange={(e) => setPayForm((f) => ({ ...f, phone: e.target.value }))} required />
+              </>
+            ) : (
+              <>
+                <select className="input" value={payForm.provider} onChange={(e) => setPayForm((f) => ({ ...f, provider: e.target.value }))}>
+                  {(payForm.kind === "bank" ? catalog?.banks : catalog?.fintechs)?.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  )) || <option value="wire">Bank wire</option>}
+                </select>
+                <input className="input" placeholder="Account reference (masked)" value={payForm.account_ref} onChange={(e) => setPayForm((f) => ({ ...f, account_ref: e.target.value }))} />
+              </>
+            )}
+            <input className="input" placeholder="Label (optional)" value={payForm.label} onChange={(e) => setPayForm((f) => ({ ...f, label: e.target.value }))} />
+            <button className="btn btn-green" type="submit">Save method</button>
+          </form>
+        )}
+
+        {paymentMethods.map((m) => (
+          <div key={m.id} className="row between" style={{ padding: "12px 0", borderBottom: "1px solid var(--border-soft)" }}>
+            <div className="row" style={{ gap: 10 }}>
+              <Smartphone size={14} color="var(--accent)" />
+              <div>
+                <div style={{ fontWeight: 600 }}>{m.label}</div>
+                <div className="small dim">
+                  {m.kind === "mobile_money" ? `${m.carrier?.toUpperCase()} · ${m.phone}` : `${m.kind} · ${m.provider}`}
+                </div>
+              </div>
+            </div>
+            <button className="btn btn-danger btn-sm" onClick={() => removePaymentMethod(m.id)} title="Remove">
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
       </div>
 
       <div className="card">
@@ -91,7 +178,6 @@ export default function Settings() {
         <div className="card-title"><h3>CLI access</h3></div>
         <div className="small dim">The <code>vastai</code> CLI is a Python package. Configure it with your API key:</div>
         <code style={{ display: "block", margin: "12px 0" }}>pip install -U vastai && vastai set api-key YOUR_API_KEY</code>
-        <div className="small dim">Then manage everything from the terminal: <code>vastai search offers 'gpu_name=RTX 4090'</code></div>
       </div>
 
       <div className="card">
