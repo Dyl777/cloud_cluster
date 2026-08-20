@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 
 	"github.com/gpuhub/cloud/internal/shared/events"
@@ -37,7 +38,9 @@ func (s *Service) emit(topic events.Topic, e InstanceEvent) {
 	if s.bus == nil {
 		return
 	}
-	_ = s.bus.Publish(context.Background(), topic, e)
+	if err := s.bus.Publish(context.Background(), topic, e); err != nil {
+		slog.Warn("provision event publish failed", "topic", topic, "err", err)
+	}
 }
 
 // Create registers a new instance.

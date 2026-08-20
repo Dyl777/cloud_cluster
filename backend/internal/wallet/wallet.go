@@ -5,6 +5,7 @@ package wallet
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -70,7 +71,9 @@ func (s *Service) emit(topic events.Topic, e WalletEvent) {
 	if s.bus == nil {
 		return
 	}
-	_ = s.bus.Publish(context.Background(), topic, e)
+	if err := s.bus.Publish(context.Background(), topic, e); err != nil {
+		slog.Warn("wallet event publish failed", "topic", topic, "err", err)
+	}
 }
 
 // acct returns the account for userID, creating a zero balance if missing.

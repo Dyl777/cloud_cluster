@@ -69,6 +69,8 @@ func NewFromEnv(group string) Bus {
 }
 
 // Publish produces one event to the topic named after the Topic constant.
+// The broker call is bounded (10s) so a stuck/unreachable broker cannot wedge
+// the calling service's request path.
 func (b *KafkaBus) Publish(ctx context.Context, topic Topic, payload any) error {
 	evt := Event{
 		ID:      fmt.Sprintf("evt-%d-%d", os.Getpid(), time.Now().UnixNano()),
@@ -80,8 +82,10 @@ func (b *KafkaBus) Publish(ctx context.Context, topic Topic, payload any) error 
 	if err != nil {
 		return err
 	}
+	pctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 	rec := &kgo.Record{Topic: string(topic), Key: []byte(evt.ID), Value: value}
-	return b.producer.ProduceSync(ctx, rec).FirstErr()
+	return b.producer.ProduceSync(pctx, rec).FirstErr()
 }
 
 // Subscribe joins the shared consumer group on the topic and runs handler for
