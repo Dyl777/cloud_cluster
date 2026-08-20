@@ -102,6 +102,7 @@ func (b *KafkaBus) Subscribe(topic Topic, handler Handler) func() {
 		kgo.SeedBrokers(b.seeds...),
 		kgo.ConsumerGroup(b.group),
 		kgo.ConsumeTopics(string(topic)),
+		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 	)
 	var c *busConsumer
 	if err == nil {
