@@ -64,35 +64,40 @@ flowchart LR
   W -. ledger events .-> N[notify]
 ```
 
-## DB schema
+## DB schema (Postgres, applied by `internal/shared/db` migrations)
 
 ```sql
-CREATE TABLE account (
-  user_id    TEXT PRIMARY KEY,
-  balance    INTEGER NOT NULL,   -- micro-units
-  held       INTEGER NOT NULL,
-  currency   TEXT NOT NULL DEFAULT 'USD',
-  updated_at TIMESTAMP NOT NULL
+CREATE TABLE wallet_account (
+  user_id          TEXT PRIMARY KEY,
+  balance_subunits BIGINT NOT NULL,  -- micro-units
+  held_subunits    BIGINT NOT NULL,
+  currency         TEXT NOT NULL DEFAULT 'USD',
+  updated_at       TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE ledger_entry (
-  id         TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL REFERENCES account(user_id),
-  type       TEXT NOT NULL,       -- credit | hold | release | settle
-  amount     INTEGER NOT NULL,
-  reference  TEXT,
-  created_at TIMESTAMP NOT NULL
-);
-CREATE INDEX idx_ledger_user ON ledger_entry(user_id, created_at);
-
-CREATE TABLE hold (
+CREATE TABLE wallet_ledger (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL,
-  amount     INTEGER NOT NULL,
+  type       TEXT NOT NULL,       -- credit | hold | release | settle | topup
+  amount_subunits BIGINT NOT NULL,
+  currency   TEXT NOT NULL DEFAULT 'USD',
   reference  TEXT,
-  created_at TIMESTAMP NOT NULL
+  created_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX idx_wallet_ledger_user ON wallet_ledger(user_id, created_at);
+
+CREATE TABLE wallet_hold (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  amount_subunits BIGINT NOT NULL,
+  currency   TEXT NOT NULL DEFAULT 'USD',
+  reference  TEXT,
+  created_at TIMESTAMPTZ NOT NULL
 );
 ```
+
+Without `DATABASE_URL` the service falls back to in-memory storage (`Store`
+in `store.go`); set it to persist to Postgres.
 
 ## ER diagram
 

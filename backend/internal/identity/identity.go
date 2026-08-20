@@ -46,25 +46,30 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// Service stores users in memory.
+// Service stores users behind a UserStore.
 type Service struct {
-	users map[string]User
+	users UserStore
 }
 
-// New returns a Service seeded with the platform superadmin.
-func New() *Service {
-	return &Service{users: make(map[string]User)}
+// New returns a Service backed by in-memory storage (single process).
+func New() *Service { return &Service{users: newMemoryUserStore()} }
+
+// NewPG returns a Service persisted to Postgres.
+func NewPG(store UserStore) *Service { return &Service{users: store} }
+
+func (s *Service) seedUser(id, email, name string, role Role) User {
+	email = strings.ToLower(email)
+	if u, err := s.users.GetByEmail(email); err == nil {
+		return u
+	}
+	u := User{ID: id, Email: email, Name: name, Role: role, CreatedAt: time.Now()}
+	_ = s.users.Insert(u)
+	return u
 }
 
 // Seed registers the bootstrap superadmin (no-op if already present).
 func (s *Service) Seed(id, email, name string) User {
-	key := strings.ToLower(email)
-	if u, ok := s.users[key]; ok {
-		return u
-	}
-	u := User{ID: id, Email: email, Name: name, Role: RoleSuperadmin, CreatedAt: time.Now()}
-	s.users[key] = u
-	return u
+	return s.seedUser(id, email, name, RoleSuperadmin)
 }
 
 // Register adds a user with the default user role and returns it.
@@ -77,19 +82,24 @@ func (s *Service) RegisterRole(id, email, name string, role Role) (User, error) 
 	if !role.Valid() {
 		return User{}, ErrInvalidRole
 	}
-	key := strings.ToLower(email)
-	if _, ok := s.users[key]; ok {
+	email = strings.ToLower(email)
+	if _, err := s.users.GetByEmail(email); err == nil {
 		return User{}, ErrDuplicateEmail
 	}
 	u := User{ID: id, Email: email, Name: name, Role: role, CreatedAt: time.Now()}
-	s.users[key] = u
+	if err := s.users.Insert(u); err != nil {
+		return User{}, err
+	}
 	return u, nil
 }
 
 // Get returns a user by email.
 func (s *Service) Get(email string) (User, bool) {
-	u, ok := s.users[strings.ToLower(email)]
-	return u, ok
+	u, err := s.users.GetByEmail(email)
+	if err != nil {
+		return User{}, false
+	}
+	return u, true
 }
 
 // SetRole updates an existing user's role.
@@ -97,21 +107,21 @@ func (s *Service) SetRole(email string, role Role) (User, error) {
 	if !role.Valid() {
 		return User{}, ErrInvalidRole
 	}
-	key := strings.ToLower(email)
-	u, ok := s.users[key]
-	if !ok {
+	u, err := s.users.UpdateRole(email, role)
+	if errors.Is(err, ErrNotFound) {
 		return User{}, ErrUnknownEmail
 	}
-	u.Role = role
-	s.users[key] = u
+	if err != nil {
+		return User{}, err
+	}
 	return u, nil
 }
 
 // List returns every registered user.
 func (s *Service) List() []User {
-	out := make([]User, 0, len(s.users))
-	for _, u := range s.users {
-		out = append(out, u)
+	out, err := s.users.List()
+	if err != nil {
+		return []User{}
 	}
 	return out
 }

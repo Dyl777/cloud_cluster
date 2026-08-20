@@ -61,9 +61,13 @@ flowchart LR
 go build ./...
 # or
 make build
-# containerized:
+# postgres-backed (compose provisions `db` and sets DATABASE_URL):
 docker compose up --build
 ```
+
+Services that persist (identity, wallet, compat) run in-memory until
+`DATABASE_URL` is set (compose does this), at which point they store to
+Postgres and run schema migrations at startup (see `internal/shared/db`).
 
 ## Communication
 

@@ -1,8 +1,9 @@
 # identity — Accounts
 
 The credibility layer: registers users, assigns roles, and exposes the
-superadmin user-management surface. In the skeleton this is an in-memory
-store; swap in Postgres + hashed credentials + JWT issues for production.
+superadmin user-management surface. Accounts persist to Postgres when
+`DATABASE_URL` is set (via `internal/shared/db` migrations); otherwise the
+service runs in-memory. Hashed credentials + JWT issuance is a later step.
 
 ```
 POST   /users                        register (email, name) → role "user"

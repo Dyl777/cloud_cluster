@@ -11,6 +11,7 @@ import (
 	"github.com/gpuhub/cloud/internal/marketplace"
 	"github.com/gpuhub/cloud/internal/provision"
 	"github.com/gpuhub/cloud/internal/settlement"
+	"github.com/gpuhub/cloud/internal/shared/db"
 	"github.com/gpuhub/cloud/internal/shared/httpx"
 	"github.com/gpuhub/cloud/internal/wallet"
 )
@@ -30,7 +31,21 @@ func main() {
 	}
 
 	bus := settlement.New()
-	wal := wallet.New()
+	var wal *wallet.Service
+	if url := os.Getenv("DATABASE_URL"); url != "" {
+		sqlDB, err := db.Connect(url)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if err := db.MigrateAll(sqlDB); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		wal = wallet.NewPG(wallet.NewPGStore(sqlDB))
+	} else {
+		wal = wallet.New()
+	}
 	reg := marketplace.NewRegistry(
 		marketplace.NewMockProvider("mock"),
 	)

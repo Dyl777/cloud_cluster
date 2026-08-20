@@ -40,43 +40,73 @@ type Hold struct {
 	CreatedAt time.Time   `json:"created_at"`
 }
 
-// Service guards accounts with a mutex.
+// Service serializes wallet operations and persists them to a Store.
 type Service struct {
-	mu      sync.Mutex
-	account map[string]*Account
-	holds   map[string]*Hold
-	ledger  []LedgerEntry
+	mu    sync.Mutex
+	store Store
 }
 
-// New returns a wallet Service.
-func New() *Service {
-	return &Service{account: make(map[string]*Account), holds: make(map[string]*Hold)}
+// New returns a wallet Service backed by in-memory storage (single process).
+func New() *Service { return &Service{store: newMemoryStore()} }
+
+// NewPG returns a wallet Service persisted to Postgres.
+func NewPG(store Store) *Service { return &Service{store: store} }
+
+// acct returns the account for userID, creating a zero balance if missing.
+func (s *Service) acct(userID, currency string) (*Account, error) {
+	a, err := s.store.Get(userID)
+	if err == nil {
+		return a, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	a = &Account{
+		UserID:    userID,
+		Balance:   money.Zero(currency),
+		Held:      money.Zero(currency),
+		UpdatedAt: time.Now(),
+	}
+	if err := s.store.Upsert(a); err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
-// Balance returns the current account (creates it if missing).
+// Balance returns the current account (created if missing).
 func (s *Service) Balance(userID, currency string) Account {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	acct := s.ensure(userID, currency)
-	return *acct
-}
-
-func (s *Service) ensure(userID, currency string) *Account {
-	if a, ok := s.account[userID]; ok {
-		return a
+	a, err := s.acct(userID, currency)
+	if err != nil {
+		return Account{UserID: userID, Balance: money.Zero(currency), Held: money.Zero(currency)}
 	}
-	a := &Account{UserID: userID, Balance: money.Zero(currency), Held: money.Zero(currency)}
-	s.account[userID] = a
-	return a
+	return *a
 }
 
 // Credit adds funds (e.g. confirmed top-up) and records a ledger entry.
 func (s *Service) Credit(id, userID, currency string, amount money.Money, ref string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	a := s.ensure(userID, currency)
+	a, err := s.acct(userID, currency)
+	if err != nil {
+		return err
+	}
 	a.Balance, _ = a.Balance.Add(amount)
 	a.UpdatedAt = time.Now()
-	s.append(id, userID, "credit", amount, ref)
-	return nil
+	if err := s.store.Upsert(a); err != nil {
+		return err
+	}
+	return s.store.AppendLedger(ledgerEntry(id, userID, "credit", amount, ref))
+}
+
+func ledgerEntry(id, userID, typ string, amount money.Money, ref string) LedgerEntry {
+	return LedgerEntry{
+		ID:        id,
+		UserID:    userID,
+		Type:      typ,
+		Amount:    amount,
+		Reference: ref,
+		CreatedAt: time.Now(),
+	}
 }
