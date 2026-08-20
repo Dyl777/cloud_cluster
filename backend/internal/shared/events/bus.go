@@ -49,9 +49,11 @@ type Handler func(ctx context.Context, evt Event) error
 // Implementations provided in this package:
 //   - MemoryBus      in-process delivery (tests, all-in-one dev binary)
 //   - WebhookBus     delivery as POST /events REST calls between services
+//   - KafkaBus       Apache Kafka transport behind the `kafka` build tag
 //
-// A Kafka implementation lives in kafka_bus.go behind the `kafka` build tag
-// and is wired in once the cloud/payment adapters are implemented.
+// NewFromEnv picks Kafka (when built with the `kafka` tag and KAFKA_BROKERS
+// is set) and otherwise falls back to the in-process MemoryBus so every
+// service still runs standalone.
 type Bus interface {
 	Publish(ctx context.Context, topic Topic, payload any) error
 	Subscribe(topic Topic, handler Handler) func()
