@@ -1,11 +1,17 @@
 package provision
 
-import "sync"
+import (
+	"context"
+	"sync"
+
+	"github.com/gpuhub/cloud/internal/shared/events"
+)
 
 // Service manages instance lifecycle and persists to an InstanceStore.
 type Service struct {
 	mu    sync.Mutex
 	store InstanceStore
+	bus   events.Bus
 }
 
 // New returns an in-memory Service (single process).
@@ -13,6 +19,26 @@ func New() *Service { return &Service{store: newMemoryStore()} }
 
 // NewPG returns a Service persisted to Postgres.
 func NewPG(store InstanceStore) *Service { return &Service{store: store} }
+
+// SetBus attaches an event bus; instance lifecycle events are fanned out.
+func (s *Service) SetBus(b events.Bus) { s.bus = b }
+
+// InstanceEvent is the payload published on instance.provisioned/destroyed.
+type InstanceEvent struct {
+	ID       string `json:"id"`
+	UserID   string `json:"user_id"`
+	GPUName  string `json:"gpu_name"`
+	NumGPUs  int    `json:"num_gpus"`
+	Provider string `json:"provider"`
+	Status   string `json:"status"`
+}
+
+func (s *Service) emit(topic events.Topic, e InstanceEvent) {
+	if s.bus == nil {
+		return
+	}
+	_ = s.bus.Publish(context.Background(), topic, e)
+}
 
 // Create registers a new instance.
 func (s *Service) Create(id, userID, gpuName string, numGPUs int, provider string) Instance {
@@ -27,6 +53,7 @@ func (s *Service) Create(id, userID, gpuName string, numGPUs int, provider strin
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_ = s.store.Put(&i)
+	s.emit(events.TopicInstanceProvisioned, instanceEventFrom(i))
 	return i
 }
 
@@ -38,6 +65,7 @@ func (s *Service) Launch(i Instance) Instance {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_ = s.store.Put(&i)
+	s.emit(events.TopicInstanceProvisioned, instanceEventFrom(i))
 	return i
 }
 
@@ -80,5 +108,20 @@ func (s *Service) Update(id string, fn func(*Instance)) (Instance, bool) {
 func (s *Service) Destroy(id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.store.Delete(id) == nil
+	if err := s.store.Delete(id); err != nil {
+		return false
+	}
+	s.emit(events.TopicInstanceDestroyed, InstanceEvent{ID: id, Status: "destroyed"})
+	return true
+}
+
+func instanceEventFrom(i Instance) InstanceEvent {
+	return InstanceEvent{
+		ID:       i.ID,
+		UserID:   i.UserID,
+		GPUName:  i.GPUName,
+		NumGPUs:  i.NumGPUs,
+		Provider: i.Provider,
+		Status:   i.Status,
+	}
 }

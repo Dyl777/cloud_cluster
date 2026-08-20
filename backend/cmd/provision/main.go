@@ -6,6 +6,7 @@ import (
 
 	"github.com/gpuhub/cloud/internal/provision"
 	"github.com/gpuhub/cloud/internal/shared/db"
+	"github.com/gpuhub/cloud/internal/shared/events"
 	"github.com/gpuhub/cloud/internal/shared/httpx"
 )
 
@@ -30,6 +31,7 @@ func main() {
 	} else {
 		svc = provision.New()
 	}
+	svc.SetBus(events.NewFromEnv("provision"))
 
 	s := httpx.NewServer(":" + port)
 	h := provision.NewHandler(svc)

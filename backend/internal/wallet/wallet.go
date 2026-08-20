@@ -3,10 +3,12 @@
 package wallet
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
 
+	"github.com/gpuhub/cloud/internal/shared/events"
 	"github.com/gpuhub/cloud/internal/shared/money"
 )
 
@@ -44,6 +46,7 @@ type Hold struct {
 type Service struct {
 	mu    sync.Mutex
 	store Store
+	bus   events.Bus
 }
 
 // New returns a wallet Service backed by in-memory storage (single process).
@@ -51,6 +54,24 @@ func New() *Service { return &Service{store: newMemoryStore()} }
 
 // NewPG returns a wallet Service persisted to Postgres.
 func NewPG(store Store) *Service { return &Service{store: store} }
+
+// SetBus attaches an event bus; published lifecycle events are fanned out.
+func (s *Service) SetBus(b events.Bus) { s.bus = b }
+
+// WalletEvent is the payload published on wallet.credited / wallet.debited.
+type WalletEvent struct {
+	UserID    string      `json:"user_id"`
+	Account   Account     `json:"account"`
+	Amount    money.Money `json:"amount"`
+	Reference string      `json:"reference"`
+}
+
+func (s *Service) emit(topic events.Topic, e WalletEvent) {
+	if s.bus == nil {
+		return
+	}
+	_ = s.bus.Publish(context.Background(), topic, e)
+}
 
 // acct returns the account for userID, creating a zero balance if missing.
 func (s *Service) acct(userID, currency string) (*Account, error) {
@@ -97,7 +118,11 @@ func (s *Service) Credit(id, userID, currency string, amount money.Money, ref st
 	if err := s.store.Upsert(a); err != nil {
 		return err
 	}
-	return s.store.AppendLedger(ledgerEntry(id, userID, "credit", amount, ref))
+	if err := s.store.AppendLedger(ledgerEntry(id, userID, "credit", amount, ref)); err != nil {
+		return err
+	}
+	s.emit(events.TopicWalletCredited, WalletEvent{UserID: userID, Account: *a, Amount: amount, Reference: ref})
+	return nil
 }
 
 func ledgerEntry(id, userID, typ string, amount money.Money, ref string) LedgerEntry {

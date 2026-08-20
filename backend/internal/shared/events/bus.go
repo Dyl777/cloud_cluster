@@ -19,6 +19,17 @@ const (
 	TopicSettlementPaid      Topic = "settlement.paid"
 )
 
+// AllTopics lists every standard topic; consumers (notify) subscribe to all.
+var AllTopics = []Topic{
+	TopicWalletCredited,
+	TopicWalletDebited,
+	TopicPaymentCreated,
+	TopicPaymentCompleted,
+	TopicInstanceProvisioned,
+	TopicInstanceDestroyed,
+	TopicSettlementPaid,
+}
+
 // Event is the envelope wrapped around every published message.
 type Event struct {
 	ID      string `json:"id"`

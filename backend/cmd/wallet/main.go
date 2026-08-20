@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gpuhub/cloud/internal/shared/db"
+	"github.com/gpuhub/cloud/internal/shared/events"
 	"github.com/gpuhub/cloud/internal/shared/httpx"
 	"github.com/gpuhub/cloud/internal/wallet"
 )
@@ -30,6 +31,7 @@ func main() {
 	} else {
 		svc = wallet.New()
 	}
+	svc.SetBus(events.NewFromEnv("wallet"))
 
 	s := httpx.NewServer(":" + port)
 	h := wallet.NewHandler(svc)

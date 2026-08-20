@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gpuhub/cloud/internal/shared/events"
 	"github.com/gpuhub/cloud/internal/shared/money"
 )
 
@@ -32,6 +33,7 @@ func (s *Service) Hold(id, userID, currency string, amount money.Money, ref stri
 	if err := s.store.AppendLedger(ledgerEntry(id, userID, "hold", amount, ref)); err != nil {
 		return nil, err
 	}
+	s.emit(events.TopicWalletDebited, WalletEvent{UserID: userID, Account: *a, Amount: amount, Reference: ref})
 	return h, nil
 }
 
@@ -59,7 +61,11 @@ func (s *Service) Settle(holdID string) error {
 	if err := s.store.DeleteHold(holdID); err != nil {
 		return err
 	}
-	return s.store.AppendLedger(ledgerEntry(h.ID+":settle", h.UserID, "settle", h.Amount, h.Reference))
+	if err := s.store.AppendLedger(ledgerEntry(h.ID+":settle", h.UserID, "settle", h.Amount, h.Reference)); err != nil {
+		return err
+	}
+	s.emit(events.TopicWalletDebited, WalletEvent{UserID: h.UserID, Account: *a, Amount: h.Amount, Reference: h.Reference})
+	return nil
 }
 
 // Release returns a hold to the balance.
@@ -87,7 +93,11 @@ func (s *Service) Release(holdID string) error {
 	if err := s.store.DeleteHold(holdID); err != nil {
 		return err
 	}
-	return s.store.AppendLedger(ledgerEntry(h.ID+":release", h.UserID, "release", h.Amount, h.Reference))
+	if err := s.store.AppendLedger(ledgerEntry(h.ID+":release", h.UserID, "release", h.Amount, h.Reference)); err != nil {
+		return err
+	}
+	s.emit(events.TopicWalletCredited, WalletEvent{UserID: h.UserID, Account: *a, Amount: h.Amount, Reference: h.Reference})
+	return nil
 }
 
 // Ledger returns all entries for a user.

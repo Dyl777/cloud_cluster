@@ -12,6 +12,7 @@ import (
 	"github.com/gpuhub/cloud/internal/provision"
 	"github.com/gpuhub/cloud/internal/settlement"
 	"github.com/gpuhub/cloud/internal/shared/db"
+	"github.com/gpuhub/cloud/internal/shared/events"
 	"github.com/gpuhub/cloud/internal/shared/httpx"
 	"github.com/gpuhub/cloud/internal/wallet"
 )
@@ -49,6 +50,8 @@ func main() {
 		wal = wallet.New()
 		prov = provision.New()
 	}
+	wal.SetBus(events.NewFromEnv("compat"))
+	prov.SetBus(events.NewFromEnv("compat"))
 	reg := marketplace.NewRegistry(
 		marketplace.NewMockProvider("mock"),
 	)
