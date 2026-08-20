@@ -25,6 +25,9 @@ func TestPostgresUserStore(t *testing.T) {
 
 	svc := NewPG(NewPGUserStore(sqlDB))
 	email := "pg-test-" + t.Name() + "@example.com"
+	t.Cleanup(func() {
+		_, _ = sqlDB.Exec("DELETE FROM identity_user WHERE email = $1", email)
+	})
 	if _, err := svc.Register("u1", email, "PG User"); err != nil {
 		t.Fatalf("register: %v", err)
 	}

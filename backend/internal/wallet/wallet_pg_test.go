@@ -1,8 +1,10 @@
 package wallet
 
 import (
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gpuhub/cloud/internal/shared/db"
 	"github.com/gpuhub/cloud/internal/shared/money"
@@ -25,11 +27,23 @@ func TestPostgresPersistence(t *testing.T) {
 	}
 
 	svc := NewPG(NewPGStore(sqlDB))
-	uid := "pg-wallet-" + t.Name()
-	if err := svc.Credit("l1", uid, "USD", money.FromUnits(7.5, "USD"), "topup"); err != nil {
+	uid := fmt.Sprintf("pg-wallet-%d", time.Now().UnixNano())
+	lid := "l-" + uid
+	hid := "h-" + uid
+	t.Cleanup(func() {
+		for _, q := range []string{
+			"DELETE FROM wallet_ledger WHERE user_id = $1",
+			"DELETE FROM wallet_hold WHERE user_id = $1",
+			"DELETE FROM wallet_account WHERE user_id = $1",
+		} {
+			_, _ = sqlDB.Exec(q, uid)
+		}
+	})
+
+	if err := svc.Credit(lid, uid, "USD", money.FromUnits(7.5, "USD"), "topup"); err != nil {
 		t.Fatalf("credit: %v", err)
 	}
-	hold, err := svc.Hold("h1", uid, "USD", money.FromUnits(2.5, "USD"), "rent")
+	hold, err := svc.Hold(hid, uid, "USD", money.FromUnits(2.5, "USD"), "rent")
 	if err != nil {
 		t.Fatalf("hold: %v", err)
 	}
