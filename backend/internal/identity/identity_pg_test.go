@@ -19,7 +19,7 @@ func TestPostgresUserStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer sqlDB.Close()
+	t.Cleanup(func() { sqlDB.Close() }) // registered first, runs last
 	if err := db.MigrateAll(url); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
