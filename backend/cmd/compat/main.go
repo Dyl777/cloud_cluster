@@ -32,6 +32,7 @@ func main() {
 
 	bus := settlement.New()
 	var wal *wallet.Service
+	var prov *provision.Service
 	if url := os.Getenv("DATABASE_URL"); url != "" {
 		sqlDB, err := db.Connect(url)
 		if err != nil {
@@ -43,13 +44,14 @@ func main() {
 			os.Exit(1)
 		}
 		wal = wallet.NewPG(wallet.NewPGStore(sqlDB))
+		prov = provision.NewPG(provision.NewPGStore(sqlDB))
 	} else {
 		wal = wallet.New()
+		prov = provision.New()
 	}
 	reg := marketplace.NewRegistry(
 		marketplace.NewMockProvider("mock"),
 	)
-	prov := provision.New()
 	_ = bus
 
 	srv := compat.NewServer(apiKey, userID, reg, prov, wal)

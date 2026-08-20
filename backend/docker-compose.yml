@@ -95,8 +95,12 @@ services:
     command: ["./bin/provision"]
     environment:
       - PROVISION_PORT=8085
+      - DATABASE_URL=postgres://gpuhub:gpuhub_dev@db:5432/gpuhub?sslmode=disable
     ports:
       - "8085:8085"
+    depends_on:
+      db:
+        condition: service_healthy
 
   settlement:
     build: .
